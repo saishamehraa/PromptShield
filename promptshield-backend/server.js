@@ -86,10 +86,8 @@ const frontendPath = path.join(__dirname, '../src/dist');
 app.use(express.static(frontendPath));
 
 // Handle React routing (important for SPA)
-app.get('*', (req, res, next) => {
-  if (req.path.startsWith('/api')) {
-    return next(); // skip API routes
-  }
+app.use((req, res, next) => {
+  if (req.path.startsWith('/api')) return next();
   res.sendFile(path.join(frontendPath, 'index.html'));
 });
 
