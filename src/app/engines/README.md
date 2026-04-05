@@ -110,7 +110,7 @@ User Input → Detection Engine → Masking Engine → Risk Scoring → Policy E
 
 ```javascript
 // Making a secure request from your frontend to the PromptShield API
-const response = await fetch('http://localhost:3001/api/secure-chat', {
+const response = await fetch('/api/secure-chat', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({ message: "My API key is sk-12345, can you help?" })

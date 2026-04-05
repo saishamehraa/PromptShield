@@ -19,7 +19,7 @@ export interface PromptShieldResponse {
 
 // 2. The actual API caller
 export async function processWithPromptShield(request: { message: string }): Promise<PromptShieldResponse> {
-  const response = await fetch('http://localhost:3001/api/secure-chat', {
+  const response = await fetch('/api/secure-chat', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ message: request.message })

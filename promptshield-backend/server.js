@@ -76,14 +76,12 @@ app.post('/api/secure-chat', async (req, res) => {
 
 // Serve frontend (Vite build)
 const path = require('path');
+const frontendPath = path.join(__dirname, '..', 'dist'); 
 
-const frontendPath = path.join(__dirname, '../src/dist');
-
-// Serve static files
 app.use(express.static(frontendPath));
 
-// Handle React routing (important for SPA)
 app.use((req, res, next) => {
+  // Ensure API calls don't get swallowed by the frontend router
   if (req.path.startsWith('/api')) return next();
   res.sendFile(path.join(frontendPath, 'index.html'));
 });

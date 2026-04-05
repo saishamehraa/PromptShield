@@ -4,8 +4,10 @@
   "version": "0.0.1",
   "type": "module",
   "scripts": {
+    "install-backend": "cd promptshield-backend && npm install",
+    "install-all": "npm install && npm run install-backend",
     "build": "vite build",
-    "dev": "vite"
+    "start": "node promptshield-backend/server.js"
   },
   "dependencies": {
     "@emotion/react": "11.14.0",
