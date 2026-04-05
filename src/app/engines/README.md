@@ -57,22 +57,22 @@ User Input → Detection Engine → Masking Engine → Risk Scoring → Policy E
 
 **Policy Rules**:
 - Score ≥ 70 → **BLOCK** (request rejected)
-- Score ≥ 40 → **SANITIZE** (mask data before processing)
-- Score < 40 → **ALLOW** (process normally)
+- Score ≥ 30 → **SANITIZE** (mask data before processing)
+- Score < 30 → **ALLOW** (process normally)
 
 **Output**: `PolicyDecision` with action, matched rules, and reasoning
 
-### 5. LLM Integration (`llm.ts`)
+### 5. LLM Integration (`llm.js`)
 
-**Purpose**: Simulates Gemma model responses
+**Purpose**: Handles secure communication with actual LLMs via dynamic routing.
 
 **Features**:
-- Context-aware responses
-- Keyword matching for realistic replies
-- Simulated API delay
-- Gemma 4 model
+- **Primary Route**: Serverless cloud inference via Hugging Face Router (Gemma 4 31B)
+- **Fallback Route**: Local CPU execution via Ollama (gemma4:latest) for offline reliability
+- Intelligent retry logic for rate limits (HTTP 429)
+- Handles "Wait for Model" cold starts
 
-**Output**: `LLMResponse` with generated text
+**Output**: Generated text response from the active model.
 
 ### 6. Output Guard (`outputGuard.ts`)
 
@@ -108,17 +108,19 @@ User Input → Detection Engine → Masking Engine → Risk Scoring → Policy E
 
 ## Usage Example
 
-```typescript
-import { processWithPromptShield } from './engines/promptShield';
-
-const response = await processWithPromptShield({
-  message: "My API key is sk-12345, can you help?"
+```javascript
+// Making a secure request from your frontend to the PromptShield API
+const response = await fetch('http://localhost:3001/api/secure-chat', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ message: "My API key is sk-12345, can you help?" })
 });
 
-console.log(response.action); // "SANITIZE" or "BLOCK"
-console.log(response.riskScore); // 75
-console.log(response.maskedInput); // "My API key is [REDACTED_API_KEY], can you help?"
-console.log(response.safeOutput); // LLM response with leaks removed
+const data = await response.json();
+
+console.log(data.action); // "BLOCK"
+console.log(data.riskScore); // 85
+console.log(data.maskedInput); // "My API key is [REDACTED_API_KEY], can you help?"
 ```
 
 ## Test Prompts
@@ -138,15 +140,16 @@ The system includes 12 pre-configured test cases:
 4. **Comprehensive Logging**: Full audit trail of decisions
 5. **Customizable Policies**: Easily adjust thresholds
 
-## Production Deployment
 
-To use in production:
+## Production Architecture
 
-1. Add database logging for audit trails
-2. Implement rate limiting
-3. Add authentication/authorization
-4. Deploy as middleware service
-5. Configure alerting for high-risk events
+The system is currently equipped with production-grade features:
+1. **MongoDB Atlas Logging**: Full forensic audit trails of every request, score, and latency metric.
+2. **Express.js API**: Standalone backend service separating frontend state from security logic.
+
+**Next Steps for Enterprise Scaling**:
+1. Implement IP-based rate limiting
+2. Add API key authentication/authorization
 
 ## Performance
 
