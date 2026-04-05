@@ -1,4 +1,4 @@
-// server.js
+// backend/server.js
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
@@ -11,10 +11,21 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-mongoose.connect(process.env.MONGODB_URI)
+// Health check
+app.get('/health', (req, res) => {
+  res.status(200).send('OK');
+});
+
+// MongoDB connection
+mongoose.connect(process.env.MONGODB_URI, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+})
+
   .then(() => console.log('✅ Connected to MongoDB Atlas'))
   .catch(err => console.error('❌ MongoDB error:', err));
 
+//API Route  
 app.post('/api/secure-chat', async (req, res) => {
   const startTime = Date.now();
   const { message } = req.body;
@@ -64,6 +75,22 @@ app.post('/api/secure-chat', async (req, res) => {
     console.error(error);
     res.status(500).json({ error: 'Internal Server Error' });
   }
+});
+
+// Serve frontend (Vite build)
+const path = require('path');
+
+const frontendPath = path.join(__dirname, '../src/dist');
+
+// Serve static files
+app.use(express.static(frontendPath));
+
+// Handle React routing (important for SPA)
+app.get('*', (req, res, next) => {
+  if (req.path.startsWith('/api')) {
+    return next(); // skip API routes
+  }
+  res.sendFile(path.join(frontendPath, 'index.html'));
 });
 
 const PORT = process.env.PORT || 3001;
