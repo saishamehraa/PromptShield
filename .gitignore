@@ -1,0 +1,7 @@
+node_modules/
+package-lock.json
+dist/
+build/
+promptshield-backend/node_modules/
+promptshield-backend/package-lock.json
+promptshield-backend/.env
