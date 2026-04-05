@@ -5,3 +5,4 @@ build/
 promptshield-backend/node_modules/
 promptshield-backend/package-lock.json
 promptshield-backend/.env
+.env
