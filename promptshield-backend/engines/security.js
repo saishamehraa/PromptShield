@@ -1,20 +1,28 @@
 // engines/security.js
 
 const INJECTION_PATTERNS = [
-  /ignore\s+(previous|all|above)\s+(instructions?|prompts?|rules?|commands?)/gi,
-  /disregard\s+(previous|all|above)\s+(instructions?|prompts?|rules?)/gi,
-  /system\s+(prompt|message|instruction):/gi,
-  /reveal\s+(your|the)\s+(system|prompt|instructions?|rules?)/gi,
-  /bypass\s+(security|safety|filter|guardrails?)/gi,
-  /jailbreak/gi,
-  /developer\s+mode/gi
+  // 1. Classic Instruction Overrides
+  /(ignore|disregard|forget|bypass|override)\s+(previous|all|above|system)?\s*(instructions?|prompts?|rules?|commands?|guidelines?|context)/gi,
+  
+  // 2. System Prompt Exfiltration
+  /(reveal|print|show|output|leak)\s+(your|the)\s+(system|prompt|instructions?|rules?|initial\s+prompt)/gi,
+  
+  // 3. Known Jailbreak Personas (DAN, Mongo Tom, etc.)
+  /(jailbreak|developer\s+mode|dan\s+mode|do\s+anything\s+now)/gi,
+  /act\s+as\s+(an|a|another)\s+(ai|assistant|entity|character|system)\s+(that|who|which)\s+(does|can|will)/gi,
+  
+  // 4. Sandbox Escapes & Hypotheticals
+  /simulate\s+a\s+(scenario|conversation)\s+where/gi,
+  /(you\s+are\s+no\s+longer|from\s+now\s+on\s+you\s+are)/gi,
+  /ignore\s+all\s+the\s+instructions\s+you\s+got\s+before/gi
 ];
 
 const SENSITIVE_PATTERNS = {
   email: { pattern: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g, replacement: '[REDACTED_EMAIL]', name: 'Email' },
   phone: { pattern: /\b(\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b/g, replacement: '[REDACTED_PHONE]', name: 'Phone' },
   apiKey: { pattern: /\b(sk-[a-zA-Z0-9]{32,}|api[_-]?key[_-]?[=:]\s*[a-zA-Z0-9]{16,})\b/gi, replacement: '[REDACTED_API_KEY]', name: 'API Key' },
-  password: { pattern: /\b(password|pwd|passwd|pass)(\s*(?:is|:|=)\s*)([^\s,.'"]+)/gi, replacement: '$1$2[REDACTED_PASSWORD]', name: 'Password' }
+  password: { pattern: /\b(password|pwd|passwd|pass)(\s*(?:is|:|=)\s*)([^\s,.'"]+)/gi, replacement: '$1$2[REDACTED_PASSWORD]', name: 'Password' },
+  jwtToken: { pattern: /ey[A-Za-z0-9-_=]+\.[A-Za-z0-9-_=]+\.?[A-Za-z0-9-_.+/=]*/g, replacement: '[REDACTED_JWT_TOKEN]', name: 'JWT Token' }
 };
 
 function analyzeAndMask(input) {
@@ -42,7 +50,7 @@ function analyzeAndMask(input) {
       sensitiveTypes.push(config.name);
       maskCount += matches.length;
 
-      // 🔥 THE FIX: Apply the replacement to maskedText, NOT input
+      // Apply the replacement to maskedText, NOT input
       if (config.name === 'Password') {
         maskedText = maskedText.replace(config.pattern, '$1$2[REDACTED_PASSWORD]');
       } else {
@@ -55,7 +63,7 @@ function analyzeAndMask(input) {
   let score = 0;
   if (injectionDetected) score = Math.min(100, 65 + (matchedPatterns.length * 10));
   if (sensitiveTypes.length > 0) score += (sensitiveTypes.length * 15);
-  if (sensitiveTypes.includes('API Key')) score += 20;
+  if (sensitiveTypes.includes('API Key') || sensitiveTypes.includes('JWT Token')) score += 20;
   score = Math.min(100, score);
 
   // 4. Policy Engine (WITH MATCHED RULES)
@@ -76,15 +84,15 @@ function analyzeAndMask(input) {
     matchedRules.push('RULE_003: Allow requests with risk score < 30');
   }
 
-  // specific threat rules
+  // Specific threat rules
   if (injectionDetected) {
     matchedRules.push('RULE_004: Prompt injection detected');
   }
   if (sensitiveTypes.length > 1) {
     matchedRules.push('RULE_005: Multiple sensitive data types detected');
   }
-  if (sensitiveTypes.includes('API Key')) {
-    matchedRules.push('RULE_006: API key exposure - elevated threat');
+  if (sensitiveTypes.includes('API Key') || sensitiveTypes.includes('JWT Token')) {
+    matchedRules.push('RULE_006: Credential exposure - elevated threat');
   }
 
   // Return everything to the frontend!
