@@ -10,7 +10,7 @@ const Logger = {
 };
 
 // ------------------------------------------------------------------
-// 1. OLLAMA INTEGRATION (Local)
+// 1. OLLAMA INTEGRATION (Local / Tunnel)
 // ------------------------------------------------------------------
 async function callOllama(prompt, modelName) {
   const startTime = performance.now();
@@ -20,10 +20,16 @@ async function callOllama(prompt, modelName) {
   // 120-second timeout for local CPU inference
   const timeoutId = setTimeout(() => controller.abort(), 300000); 
 
+  // Grab the ngrok URL from Render, or fallback to localhost if testing locally
+  const OLLAMA_BASE_URL = process.env.OLLAMA_URL || 'http://127.0.0.1:11434';
+
   try {
-    const response = await fetch('http://127.0.0.1:11434/api/generate', {
+    const response = await fetch(`${OLLAMA_BASE_URL}/api/generate`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'ngrok-skip-browser-warning': 'true' // Crucial for free ngrok accounts!
+      },
       body: JSON.stringify({ model: modelName, prompt: prompt, stream: false }),
       signal: controller.signal
     });
