@@ -1,5 +1,5 @@
 // promptshield-backend/engines/llm.js
-// 3-Tier Cascading LLM Router (HF -> Ollama -> OpenRouter)
+// 3-Tier Cascading LLM Router (HF -> Ollama -> OpenRouter Round-Robin)
 
 // Custom logger for the Node.js Terminal
 const Logger = {
@@ -51,15 +51,14 @@ async function callOllama(prompt, modelName) {
     } else {
       Logger.error(`Ollama (${modelName}) Failed:`, error.message);
     }
-    throw error; // Crucial: Throwing error triggers the fallback!
+    throw error; 
   }
 }
 
 // ------------------------------------------------------------------
-// 2. HUGGING FACE INTEGRATION (Cloud Primary - Bonus Points)
+// 2. HUGGING FACE INTEGRATION (Cloud Primary)
 // ------------------------------------------------------------------
 async function callHuggingFaceAPI(prompt) {
-  // 🔥 FIX: Added .trim() to destroy accidental invisible newlines
   const apiKey = (process.env.HF_API_KEY || "").trim(); 
   const startTime = performance.now();
   const URL = `https://router.huggingface.co/v1/chat/completions`;
@@ -109,50 +108,68 @@ async function callHuggingFaceAPI(prompt) {
 }
 
 // ------------------------------------------------------------------
-// 3. OPENROUTER INTEGRATION (Ultimate Free Fallback)
+// 3. OPENROUTER INTEGRATION (Round-Robin Fallback)
 // ------------------------------------------------------------------
 async function callOpenRouterAPI(prompt) {
-  // 🔥 FIX: Added .trim() to destroy accidental invisible newlines
   const apiKey = (process.env.OPENROUTER_API_KEY || "").trim(); 
   const startTime = performance.now();
-  const MODEL_ID = "google/gemma-4-26b-a4b-it:free";
   
-  Logger.info(`Executing Ultimate Fallback (OpenRouter: ${MODEL_ID})...`);
+  // 🔥 FIX: The Round-Robin Fallback Array
+  const FALLBACK_MODELS = [
+    "google/gemma-4-31b-it:free",
+    "google/gemma-4-26b-a4b-it:free"
+  ];
   
   if (!apiKey) throw new Error("Missing OpenRouter API Key");
 
-  try {
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${apiKey}`,
-        "HTTP-Referer": "https://promptshield-vkdv.onrender.com", // 🔥 FIX: Exact Render URL
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        model: MODEL_ID,
-        messages: [
-          { role: "system", content: "You are a secure AI assistant. Output only the safe, sanitized response." },
-          { role: "user", content: prompt }
-        ]
-      })
-    });
+  let lastError = null;
 
-    if (!response.ok) {
-      // 🔥 FIX: Actually pull the exact error text from OpenRouter to log it
-      const errorText = await response.text();
-      throw new Error(`OpenRouter API Rejected: ${response.status} - ${errorText}`);
+  // Try each model in the array sequentially
+  for (const modelId of FALLBACK_MODELS) {
+    Logger.info(`Attempting Ultimate Fallback (OpenRouter: ${modelId})...`);
+    
+    try {
+      const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${apiKey}`,
+          "HTTP-Referer": "https://promptshield-vkdv.onrender.com",
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          model: modelId,
+          messages: [
+            { role: "system", content: "You are a secure AI assistant. Output only the safe, sanitized response." },
+            { role: "user", content: prompt }
+          ]
+        })
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Rejected: ${response.status} - ${errorText}`);
+      }
+
+      const data = await response.json();
+      const timeTaken = ((performance.now() - startTime) / 1000).toFixed(2);
+      Logger.success(`Successfully executed via OpenRouter (${modelId}) in ${timeTaken}s`);
+
+      // Return both the output AND the specific model that succeeded
+      return {
+        output: data.choices[0].message.content.trim(),
+        modelUsed: `OpenRouter (${modelId}) - Fallback`
+      };
+      
+    } catch (error) {
+      Logger.warn(`OpenRouter model [${modelId}] failed: ${error.message}. Trying next model...`);
+      lastError = error;
+      // The loop will automatically continue to the next model in FALLBACK_MODELS
     }
-
-    const data = await response.json();
-    const timeTaken = ((performance.now() - startTime) / 1000).toFixed(2);
-    Logger.success(`Successfully executed via OpenRouter in ${timeTaken}s`);
-
-    return data.choices[0].message.content.trim();
-  } catch (error) {
-    Logger.error('OpenRouter Fallback Failed:', error.message);
-    throw error;
   }
+
+  // If the code reaches here, it means EVERY model in the array failed
+  Logger.error('All OpenRouter fallback models have been exhausted and failed.');
+  throw lastError;
 }
 
 // ------------------------------------------------------------------
@@ -202,16 +219,19 @@ async function routeModel(input, riskScore, action) {
     return { output, model: modelUsed, timestamp };
 
   } catch (primaryError) {
-    // TIER 3: THE ULTIMATE SAFETY NET (OpenRouter)
-    // If the HF API is rate-limited AND your laptop is offline, it drops down to here!
-    Logger.warn("Primary & Local routing failed. Triggering Ultimate Cloud Fallback (OpenRouter)...");
+    // TIER 3: THE ULTIMATE SAFETY NET (OpenRouter Round-Robin)
+    Logger.warn("Primary & Local routing failed. Triggering Ultimate Cloud Fallback...");
     
     try {
-      output = await callOpenRouterAPI(input);
-      return { output, model: 'OpenRouter (Gemma-4-26B) - Fallback', timestamp };
+      const openRouterResult = await callOpenRouterAPI(input);
+      // We extract the dynamic modelUsed from the new return object
+      return { 
+        output: openRouterResult.output, 
+        model: openRouterResult.modelUsed, 
+        timestamp 
+      };
       
     } catch (criticalError) {
-      // 🔥 FIX: Print the exact reason why all models failed in the Render logs
       Logger.error(`FATAL: All models offline. Reason: ${criticalError.message}`);
       return {
         output: "⚠️ System error: All language models timed out or are offline.",
