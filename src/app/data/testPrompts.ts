@@ -1,4 +1,4 @@
-// src/app/components/TestPrompts.ts
+// src/app/data/TestPrompts.ts
 // Test Prompts Generator - Phase 7
 // Provides test cases for demonstration
 

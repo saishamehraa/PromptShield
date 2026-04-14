@@ -4,7 +4,7 @@ const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
 const AuditLog = require('./models/AuditLog');
-const { analyzeAndMask } = require('./engines/security');
+const { analyzeAndMask, guardOutput } = require('./engines/security');
 const { routeModel } = require('./engines/llm');
 
 const app = express();
@@ -28,7 +28,7 @@ app.post('/api/secure-chat', async (req, res) => {
   const { message } = req.body;
 
   try {
-    // 1. Run Security Engines
+    // 1. Run Input Security Engines
     const securityCheck = analyzeAndMask(message);
     
     // 2. Determine which prompt to send to the LLM
@@ -36,9 +36,14 @@ app.post('/api/secure-chat', async (req, res) => {
     
     // 3. Route to LLM
     const llmResult = await routeModel(promptForLLM, securityCheck.riskScore, securityCheck.action);
+    
+    // 4. Guard the output from LLM
+    const outputGuardResult = guardOutput(llmResult.output);
+    const finalSafeOutput = outputGuardResult.safeOutput;
+    
     const processingTimeMs = Date.now() - startTime;
 
-    // 4. Save to MongoDB Database securely
+    // 5. Save to MongoDB 
     const logEntry = new AuditLog({
       originalInput: securityCheck.originalInput,
       maskedInput: securityCheck.maskedInput,
@@ -51,7 +56,7 @@ app.post('/api/secure-chat', async (req, res) => {
     await logEntry.save();
     console.log(`[Database] Logged Request | Action: ${securityCheck.action} | Model: ${llmResult.model}`);
 
-    // 5. Send structured response back to React
+    // 6. Send structured response back to React
     res.json({
       action: securityCheck.action,
       riskScore: securityCheck.riskScore,
@@ -64,7 +69,7 @@ app.post('/api/secure-chat', async (req, res) => {
         sensitiveDataTypes: securityCheck.detectionDetails.sensitiveTypes
       },
       matchedRules: securityCheck.matchedRules,
-      safeOutput: llmResult.output,
+      safeOutput: finalSafeOutput, 
       processingTimeMs
     });
 
@@ -74,14 +79,13 @@ app.post('/api/secure-chat', async (req, res) => {
   }
 });
 
-// Serve frontend (Vite build)
+// Serve frontend
 const path = require('path');
 const frontendPath = path.join(__dirname, '..', 'dist'); 
 
 app.use(express.static(frontendPath));
 
 app.use((req, res, next) => {
-  // Ensure API calls don't get swallowed by the frontend router
   if (req.path.startsWith('/api')) return next();
   res.sendFile(path.join(frontendPath, 'index.html'));
 });
