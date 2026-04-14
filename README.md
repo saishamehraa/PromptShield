@@ -135,16 +135,6 @@ Safe Response + Audit Logs
 | 🔴 Injection  | “Ignore instructions…”                                    | BLOCK    | Attack prevented |
 
 
-## 🎬 Demo
-
-### 🌐 Live Demo
-
-*(Add your deployed link here)*
-
-### 🎥 Video Demo
-
-*(Add your YouTube link here)*
-
 
 ## 🛠️ Tech Stack
 
