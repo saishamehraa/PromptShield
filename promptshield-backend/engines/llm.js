@@ -51,7 +51,7 @@ async function callOllama(prompt, modelName) {
     } else {
       Logger.error(`Ollama (${modelName}) Failed:`, error.message);
     }
-    throw error; // Crucial: Throwing error triggers the OpenRouter fallback!
+    throw error; // Crucial: Throwing error triggers the fallback!
   }
 }
 
@@ -59,7 +59,8 @@ async function callOllama(prompt, modelName) {
 // 2. HUGGING FACE INTEGRATION (Cloud Primary - Bonus Points)
 // ------------------------------------------------------------------
 async function callHuggingFaceAPI(prompt) {
-  const apiKey = process.env.HF_API_KEY; 
+  // 🔥 FIX: Added .trim() to destroy accidental invisible newlines
+  const apiKey = (process.env.HF_API_KEY || "").trim(); 
   const startTime = performance.now();
   const URL = `https://router.huggingface.co/v1/chat/completions`;
   const MODEL_ID = "google/gemma-4-31B-it";
@@ -111,7 +112,8 @@ async function callHuggingFaceAPI(prompt) {
 // 3. OPENROUTER INTEGRATION (Ultimate Free Fallback)
 // ------------------------------------------------------------------
 async function callOpenRouterAPI(prompt) {
-  const apiKey = process.env.OPENROUTER_API_KEY; 
+  // 🔥 FIX: Added .trim() to destroy accidental invisible newlines
+  const apiKey = (process.env.OPENROUTER_API_KEY || "").trim(); 
   const startTime = performance.now();
   const MODEL_ID = "google/gemma-4-26b-a4b-it:free";
   
@@ -119,29 +121,38 @@ async function callOpenRouterAPI(prompt) {
   
   if (!apiKey) throw new Error("Missing OpenRouter API Key");
 
-  const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${apiKey}`,
-      "HTTP-Referer": "https://promptshield-lite.onrender.com", 
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      model: MODEL_ID,
-      messages: [
-        { role: "system", content: "You are a secure AI assistant. Output only the safe, sanitized response." },
-        { role: "user", content: prompt }
-      ]
-    })
-  });
+  try {
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "HTTP-Referer": "https://promptshield-vkdv.onrender.com", // 🔥 FIX: Exact Render URL
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        model: MODEL_ID,
+        messages: [
+          { role: "system", content: "You are a secure AI assistant. Output only the safe, sanitized response." },
+          { role: "user", content: prompt }
+        ]
+      })
+    });
 
-  if (!response.ok) throw new Error(`OpenRouter 429 or Failure: ${response.statusText}`);
+    if (!response.ok) {
+      // 🔥 FIX: Actually pull the exact error text from OpenRouter to log it
+      const errorText = await response.text();
+      throw new Error(`OpenRouter API Rejected: ${response.status} - ${errorText}`);
+    }
 
-  const data = await response.json();
-  const timeTaken = ((performance.now() - startTime) / 1000).toFixed(2);
-  Logger.success(`Successfully executed via OpenRouter in ${timeTaken}s`);
+    const data = await response.json();
+    const timeTaken = ((performance.now() - startTime) / 1000).toFixed(2);
+    Logger.success(`Successfully executed via OpenRouter in ${timeTaken}s`);
 
-  return data.choices[0].message.content.trim();
+    return data.choices[0].message.content.trim();
+  } catch (error) {
+    Logger.error('OpenRouter Fallback Failed:', error.message);
+    throw error;
+  }
 }
 
 // ------------------------------------------------------------------
@@ -200,7 +211,8 @@ async function routeModel(input, riskScore, action) {
       return { output, model: 'OpenRouter (Gemma-4-26B) - Fallback', timestamp };
       
     } catch (criticalError) {
-      Logger.error("FATAL: All models, including OpenRouter, are offline.");
+      // 🔥 FIX: Print the exact reason why all models failed in the Render logs
+      Logger.error(`FATAL: All models offline. Reason: ${criticalError.message}`);
       return {
         output: "⚠️ System error: All language models timed out or are offline.",
         model: "System Offline",
