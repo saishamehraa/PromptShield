@@ -236,3 +236,5 @@ ensuring that powerful models like Gemma 4 can be deployed safely, reliably, and
 
 > Because the future of AI depends not just on capability—
 > but on **trust**.
+
+![LICENSE](./license.md)
