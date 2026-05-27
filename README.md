@@ -2,6 +2,26 @@
 
 ### AI Security Gateway for Safe & Trustworthy LLM Applications
 
+# 🛡️ PromptShield Lite
+
+### AI Security Gateway for Safe & Trustworthy LLM Applications
+
+![Gemma 4](https://img.shields.io/badge/Gemma_4-Powered-blue?style=for-the-badge)
+![OpenRouter](https://img.shields.io/badge/OpenRouter-Integrated-purple?style=for-the-badge)
+![Ollama](https://img.shields.io/badge/Ollama-Edge_AI-black?style=for-the-badge)
+![Node.js](https://img.shields.io/badge/Node.js-Backend-green?style=for-the-badge&logo=node.js&logoColor=white)
+![React](https://img.shields.io/badge/React-Frontend-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)
+![MongoDB](https://img.shields.io/badge/MongoDB-Atlas-success?style=for-the-badge&logo=mongodb&logoColor=white)
+![Security](https://img.shields.io/badge/AI-Security-red?style=for-the-badge)
+![License](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)
+![Status](https://img.shields.io/badge/Status-Production_Ready-brightgreen?style=for-the-badge)
+![Hackathon](https://img.shields.io/badge/Gemma_4_Good-Hackathon-orange?style=for-the-badge)
+![Zero Trust](https://img.shields.io/badge/Architecture-Zero_Trust-darkred?style=for-the-badge)
+![PII Protection](https://img.shields.io/badge/PII-Protection-blueviolet?style=for-the-badge)
+![Prompt Injection Defense](https://img.shields.io/badge/Prompt_Injection-Blocked-critical?style=for-the-badge)
+![Offline Ready](https://img.shields.io/badge/Offline-Ready-success?style=for-the-badge)
+![Resilient Routing](https://img.shields.io/badge/Routing-Resilient-informational?style=for-the-badge)
+
 ---
 
 ## 🚨 The Problem
